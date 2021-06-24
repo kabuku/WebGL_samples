@@ -1,2 +1,2 @@
 # WebGL_samples
-ゲームグラフィックス特論のOpenGLサンプルのWebGL移植
+[ゲームグラフィックス特論](https://tokoik.github.io/gg/)のOpenGLサンプルのWebGL移植
