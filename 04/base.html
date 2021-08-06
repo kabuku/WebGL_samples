@@ -23,13 +23,13 @@ for webgl-utils, m3, m4, and webgl-lessons-ui.
 <!--script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script-->
 <script src="../common/webgl-utils.js"></script>
 <script type="module">
-import { createShader, createProgram } from "./gg.js"
-import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "./matrix.js"
-import { vertexShaderSource, fragmentShaderSource } from "./shader.js"
-import { createObject } from "./object.js"
-import { spline } from "./spline.js"
+import { createShader, createProgram } from "./js/gg.js"
+import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "./js/matrix.js"
+import { vertexShaderSource, fragmentShaderSource } from "./js/shader.js"
+import { createObject } from "./js/object.js"
+import { spline } from "./js/spline.js"
 
-import { qmake, slerp, qrot } from "./quaternion.js"
+import { qmake, slerp, qrot } from "./js/quaternion.js"
 
 let gl, program, mcLoc, mv, baseTime, vao, route, transit
 
