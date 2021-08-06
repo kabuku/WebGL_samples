@@ -23,42 +23,15 @@ for webgl-utils, m3, m4, and webgl-lessons-ui.
 <!--script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script-->
 <script src="../common/webgl-utils.js"></script>
 <script type="module">
+import { createShader, createProgram } from "./gg.js"
 import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "./matrix.js"
-import { createUnitQuaternion, slerp, quatToaMat } from "./quaternion.js"
 import { vertexShaderSource, fragmentShaderSource } from "./shader.js"
 import { createObject } from "./object.js"
 import { spline } from "./spline.js"
 
-function createShader(gl, type, source) {
-  var shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-  if (success) {
-    return shader;
-  }
+import { qmake, slerp, qrot } from "./quaternion.js"
 
-  console.log(gl.getShaderInfoLog(shader));  // eslint-disable-line
-  gl.deleteShader(shader);
-  return undefined;
-}
-
-function createProgram(gl, vertexShader, fragmentShader) {
-  var program = gl.createProgram();
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
-  var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-  if (success) {
-    return program;
-  }
-
-  console.log(gl.getProgramInfoLog(program));  // eslint-disable-line
-  gl.deleteProgram(program);
-  return undefined;
-}
-
-let gl, program, mcLoc, mv, position, baseTime, vao, route, transit
+let gl, program, mcLoc, mv, baseTime, vao, route, transit
 
 // アニメーションの周期（秒）
 const cycle = 5
@@ -70,7 +43,6 @@ function app() {
     return;
   }
   gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-  console.log(gl.canvas.width, gl.canvas.height)
 
   // 背景色を指定する
   gl.clearColor(0, 0, 0, 0);
@@ -82,8 +54,8 @@ function app() {
   )
 
   // uniform 変数のインデックスの検索
-  const positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  mcLoc = gl.getUniformLocation(program, "u_matrix");
+  const positionAttributeLocation = gl.getAttribLocation(program, "pv");
+  mcLoc = gl.getUniformLocation(program, "mc");
 
   // ビュー変換行列を mv に求める
   mv = lookat(3, 4, 5, 0, 0, 0, 0, 1, 0);
@@ -196,6 +168,7 @@ function render() {
   gl.useProgram(null);
 
   // カラーバッファを入れ替えてイベントを取り出す
+  // nop
 }
 
 app()

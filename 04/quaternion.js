@@ -1,4 +1,4 @@
-export function createUnitQuaternion(axis, rad) {
+export function qmake(axis, rad) {
   const ll = axis[0]*axis[0] + axis[1]*axis[1] + axis[2]*axis[2]
   if (ll === 0) return null
 
@@ -32,7 +32,7 @@ export function slerp(q, r, t) {
   }
 }
 
-export function quatToaMat(q) {
+export function qrot(q) {
   const m00 = 1 - 2*(q[1]*q[1] + q[2]*q[2])
   const m01 = 2*(q[0]*q[1] - q[3]*q[2])
   const m02 = 2*(q[2]*q[0] + q[3]*q[1])

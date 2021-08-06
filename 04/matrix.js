@@ -10,9 +10,9 @@ export function translation(tx, ty, tz) {
 export function projection(width, height, depth) {
   // Note: This matrix flips the Y axis so 0 is at the top.
   return [
-      2 / width, 0, 0, 0,
-      0, -2 / height, 0, 0,
-      0, 0, 2 / depth, 0,
+     2 / width, 0, 0, 0,
+     0, -2 / height, 0, 0,
+     0, 0, 2 / depth, 0,
     -1, 1, 0, 1,
   ];
 }
@@ -71,19 +71,19 @@ export function multiply(a, b) {
 export function ortho(left, right, bottom, top, zNear, zFar)
 {
   return [
-  2 / (right - left),0,0,0,
-  0,2 / (top - bottom),0,0,
-  0,0,-2 / (zFar - zNear),0,
-  -(right + left) / (right - left),-(top + bottom) / (top - bottom),-(zFar + zNear) / (zFar - zNear),1,
+    2 / (right - left),0,0,0,
+    0,2 / (top - bottom),0,0,
+    0,0,-2 / (zFar - zNear),0,
+    -(right + left) / (right - left),-(top + bottom) / (top - bottom),-(zFar + zNear) / (zFar - zNear),1,
   ];
 }
 export function frustum(left, right, bottom, top, zNear, zFar)
 {
   return [
-  2 * zNear / (right - left),0,0,0,
-  0,2 * zNear / (top - bottom),0,0
-  (right + left) / (right - left),(top + bottom) / (top - bottom),-(zFar + zNear) / (zFar - zNear),-1,
-  0,0,-2 * zFar * zNear / (zFar - zNear),0
+    2 * zNear / (right - left),0,0,0,
+    0,2 * zNear / (top - bottom),0,0
+    (right + left) / (right - left),(top + bottom) / (top - bottom),-(zFar + zNear) / (zFar - zNear),-1,
+    0,0,-2 * zFar * zNear / (zFar - zNear),0
   ];
 }
 //
@@ -96,9 +96,10 @@ export function frustum(left, right, bottom, top, zNear, zFar)
 export function perspective(fovy, aspect, zNear, zFar)
 {
   // 【宿題】ここを解答してください（loadIdentity() を置き換えてください）
+  const f = 1 / Math.tan(fovy/2)
   return [
-    fovy / aspect, 0, 0, 0,
-    0, fovy, 0, 0,
+    f / aspect, 0, 0, 0,
+    0, f, 0, 0,
     0, 0, -(zFar + zNear) / (zFar - zNear), -1,
     0, 0,  - 2 * zFar * zNear / ( zFar - zNear), 0,
   ];
