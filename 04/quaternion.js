@@ -14,7 +14,7 @@ export function qmake(axis, rad) {
 
 export function slerp(q, r, t) {
   const qr = q[0]*r[0] + q[1]*r[1] + q[2]*r[2] + q[3]*r[3]
-  const ss = 1 - (qr[0]*qr[0] + qr[1]*qr[1] + qr[2]*qr[2] + qr[3]*qr[3])
+  const ss = 1 - qr*qr
   if (ss === 0) {
     return [...q]
   } else {

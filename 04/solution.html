@@ -1,15 +1,16 @@
-
 <!-- Licensed under a BSD license. See license.html for license -->
 <!DOCTYPE html>
 <html>
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>WebGL2 - Fundamentals</title>
-    <link type="text/css" href="https://webgl2fundamentals.org/webgl/resources/webgl-tutorials.css" rel="stylesheet" />
+    <title>ggsample04</title>
+    <!--link type="text/css" href="https://webgl2fundamentals.org/webgl/resources/webgl-tutorials.css" rel="stylesheet" /-->
+    <link type="text/css" href="../common/webgl-tutorials.css" rel="stylesheet" />
   </head>
   <body>
-    <canvas id="c"></canvas>
+    <canvas id="c" width="400" height="300"></canvas>
+    Ref. <a href="https://github.com/tokoik/ggsample04" target="_blank">https://github.com/tokoik/ggsample04</a>
   </body>
 </html>
 <!--
@@ -19,129 +20,60 @@ See https://webgl2fundamentals.org/webgl/lessons/webgl-boilerplate.html
 and https://webgl2fundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
 for webgl-utils, m3, m4, and webgl-lessons-ui.
 -->
-<script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script>
+<!--script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script-->
+<script src="../common/webgl-utils.js"></script>
 <script type="module">
+import { createShader, createProgram } from "./gg.js"
 import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "./matrix.js"
-import { createUnitQuaternion, slerp, quatToaMat } from "./quaternion.js"
+import { vertexShaderSource, fragmentShaderSource } from "./shader.js"
+import { createObject } from "./object.js"
+import { spline } from "./spline.js"
 
-var vertexShaderSource = `#version 300 es
+import { qmake, slerp, qrot } from "./quaternion.js"
 
-// an attribute is an input (in) to a vertex shader.
-// It will receive data from a buffer
-in vec4 a_position;
-uniform mat4 u_matrix;
+let gl, program, mcLoc, mv, baseTime, vao, route, transit
 
+// アニメーションの周期（秒）
+const cycle = 5
 
-// all shaders have a main function
-void main() {
-
-  // gl_Position is a special variable a vertex shader
-  // is responsible for setting
-  gl_Position = u_matrix * a_position;
-}
-`;
-
-var fragmentShaderSource = `#version 300 es
-
-// fragment shaders don't have a default precision so we need
-// to pick one. highp is a good default. It means "high precision"
-precision highp float;
-
-// we need to declare an output for the fragment shader
-out vec4 outColor;
-
-void main() {
-  // Just set the output to a constant redish-purple
-  outColor = vec4(1, 0, 0.5, 1);
-}
-`;
-
-function createShader(gl, type, source) {
-  var shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  var success = gl.getShaderParameter(shader, gl.COMPILE_STATUS);
-  if (success) {
-    return shader;
-  }
-
-  console.log(gl.getShaderInfoLog(shader));  // eslint-disable-line
-  gl.deleteShader(shader);
-  return undefined;
-}
-
-function createProgram(gl, vertexShader, fragmentShader) {
-  var program = gl.createProgram();
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
-  var success = gl.getProgramParameter(program, gl.LINK_STATUS);
-  if (success) {
-    return program;
-  }
-
-  console.log(gl.getProgramInfoLog(program));  // eslint-disable-line
-  gl.deleteProgram(program);
-  return undefined;
-}
-
-let gl, program, positionAttributeLocation, matrixLocation
-
-function init() {
-  // Get A WebGL context
-  var canvas = document.querySelector("#c");
+function app() {
+  const canvas = document.querySelector("#c");
   gl = canvas.getContext("webgl2");
   if (!gl) {
     return;
   }
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-  // create GLSL shaders, upload the GLSL source, compile the shaders
-  var vertexShader = createShader(gl, gl.VERTEX_SHADER, vertexShaderSource);
-  var fragmentShader = createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource);
+  // 背景色を指定する
+  gl.clearColor(0, 0, 0, 0);
 
-  // Link the two shaders into a program
-  program = createProgram(gl, vertexShader, fragmentShader);
+  // プログラムオブジェクトの作成
+  program = createProgram(gl, 
+    createShader(gl, gl.VERTEX_SHADER, vertexShaderSource),
+    createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource),
+  )
 
-  // look up where the vertex data needs to go.
-  positionAttributeLocation = gl.getAttribLocation(program, "a_position");
-  matrixLocation = gl.getUniformLocation(program, "u_matrix");
-}
+  // uniform 変数のインデックスの検索
+  const positionAttributeLocation = gl.getAttribLocation(program, "pv");
+  mcLoc = gl.getUniformLocation(program, "mc");
 
-function draw(step) {
-  // Create a buffer and put three 2d clip space points in it
-  var positionBuffer = gl.createBuffer();
+  // ビュー変換行列を mv に求める
+  mv = lookat(3, 4, 5, 0, 0, 0, 0, 1, 0);
 
-  // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  // 頂点属性
+  const position = [
+     0.9,  0.9,  0.9,
+     0.9, -0.9,  0.9,
+     0.9, -0.9, -0.9,
+     0.9,  0.9, -0.9,
 
-  const q = createUnitQuaternion([1, 1, 0], step / 10)
-  const mat = quatToaMat(q)
-
-  const ps = [
-    [ 0.9,  0.9,  0.9],
-    [ 0.9, -0.9,  0.9],
-    [ 0.9, -0.9, -0.9],
-    [ 0.9,  0.9, -0.9],
-
-    [-0.9,  0.9,  0.9],
-    [-0.9, -0.9,  0.9],
-    [-0.9, -0.9, -0.9],
-    [-0.9,  0.9, -0.9],
+    -0.9,  0.9,  0.9,
+    -0.9, -0.9,  0.9,
+    -0.9, -0.9, -0.9,
+    -0.9,  0.9, -0.9,
   ];
-  const positions = []
-  for (const p of ps) {
-    positions.push(...mulV(mat, p))
-  }
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
-  // Create a vertex array object (attribute state)
-  var vao = gl.createVertexArray();
-
-  // and make it the one we're currently working with
-  gl.bindVertexArray(vao);
-
-  var indexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+  // 頂点インデックス
   const index = [
     0, 1,
     1, 2,
@@ -158,50 +90,92 @@ function draw(step) {
     2, 6,
     3, 7
   ];
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(index), gl.STATIC_DRAW);
 
-  // Turn on the attribute
-  gl.enableVertexAttribArray(positionAttributeLocation);
+  // 頂点配列オブジェクトの作成
+  vao = createObject(gl, position, index, positionAttributeLocation)
 
-  // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
-  var size = 3;          // 3 components per iteration
-  var type = gl.FLOAT;   // the data is 32bit floats
-  var normalize = false; // don't normalize the data
-  var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
-  var offset = 0;        // start at the beginning of the buffer
-  gl.vertexAttribPointer(
-      positionAttributeLocation, size, type, normalize, stride, offset);
+  // 平行移動の経路
+  route = [
+    [ -2.0, -1.0, -3.0 ],
+    [  0.0, -2.0, -2.0 ],
+    [ -1.0, -1.0, -1.0 ],
+    [ -0.5, -0.5, -0.5 ],
+    [  0.0,  0.0,  0.0 ],
+  ]
 
+  // 通過時間 (× cycle)
+  transit = [
+    0.0,
+    0.3,
+    0.5,
+    0.7,
+    1.0,
+  ];
 
-  webglUtils.resizeCanvasToDisplaySize(gl.canvas);
+  // 経過時間のリセット
+  baseTime = new Date().getTime()
 
-  // Tell WebGL how to convert from clip space to pixels
-  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
-
-  // Clear the canvas
-  gl.clearColor(0, 0, 0, 0);
-  gl.clear(gl.COLOR_BUFFER_BIT);
-
-  // Tell it to use our program (pair of shaders)
-  gl.useProgram(program);
-
-  var mp = perspective(1.5,  gl.canvas.width / gl.canvas.height , 1, 15);
-  var mv = lookat(3, 4, 5, 0, 0, 0, 0, 1, 0);
-  var matrix = multiply(mp, mv);
-  gl.uniformMatrix4fv(matrixLocation, false, matrix);
-
-  // Bind the attribute/buffer set we want.
-  gl.bindVertexArray(vao);
-
-  // draw
-  var primitiveType = gl.LINES;
-  var offset = 0;
-  var count = 24;
-  gl.drawElements(primitiveType, count, gl.UNSIGNED_SHORT, offset);
+  // ウィンドウが開いている間繰り返す
+  function loop() {
+    render()
+    requestAnimationFrame(loop)
+  }
+  loop()
 }
 
-let step = 0
-init();
-draw(step);
-setInterval(() => draw(++step), 100)
+// ウィンドウが開いている間繰り返す
+function render() {
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  // シェーダプログラムの使用開始
+  gl.useProgram(program);
+
+  // 時刻の計測
+  const ms = (new Date().getTime() - baseTime) / 1000
+  const t = ms % cycle / cycle
+
+  // 時刻 t にもとづく回転アニメーション
+  // 【宿題】ここを解答してください（下の loadIdentity() を置き換えてください）
+  //const mr = loadIdentity();                   // 回転の変換行列
+  // -----------------------------------
+  const q = qmake([1, 0, 0], 1)
+  const r = qmake([0, 0, 1], 2)
+  const qrt = slerp(q, r, t)
+  const mr = qrot(qrt)
+  // -----------------------------------
+
+  // 時刻 t にもとづく平行移動アニメーション
+  const location = spline(route, transit, t) // 現在位置
+  const mt = translation(...location);
+
+  // モデル変換行列を mm に求め，
+  // それとビュー変換行列 mv の積をモデルビュー変換行列 mw に求める
+  const mm = multiply(mt, mr)  // モデル変換 mm ← 移動 mt × 回転 mr
+  const mw = multiply(mv, mm)  // モデルビュー変換 mw ← ビュー変換 mv × モデル変換 mm
+
+  // 透視投影変換行列を mp に求め，
+  // それとモデルビュー変換行列 mw の積をクリッピング座標系への変換行列 mc に求める
+  const mp = perspective(0.5, gl.canvas.width / gl.canvas.height, 1.0, 15.0);
+  const mc = multiply(mp, mw)        // クリッピング座標系への変換行列 mc ← 投影変換 mp × モデルビュー変換 mw
+
+  // uniform 変数 mc に変換行列 mc を設定する
+  gl.uniformMatrix4fv(mcLoc, false, mc);
+
+  // 描画に使う頂点配列オブジェクトの指定
+  gl.bindVertexArray(vao);
+
+  // 図形の描画
+  gl.drawElements(gl.LINES, 24, gl.UNSIGNED_SHORT, 0);
+
+  // 頂点配列オブジェクトの指定解除
+  gl.bindVertexArray(null);
+
+  // シェーダプログラムの使用終了
+  gl.useProgram(null);
+
+  // カラーバッファを入れ替えてイベントを取り出す
+  // nop
+}
+
+app()
 </script>
