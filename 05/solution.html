@@ -26,13 +26,13 @@ for webgl-utils, m3, m4, and webgl-lessons-ui.
 import { createShader, createProgram } from "../common/js/gg.js";
 import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "../common/js/matrix.js";
 import { vertexShaderSource, fragmentShaderSource } from "./shader.js";
-import { createObject } from "../common/js/object.js";
+import { createObject } from "./object.js";
 import { spline } from "../common/js/spline.js";
-import { position0, index } from "../common/js/primitives/cylinder.js";
+import { position0, position1, index } from "../common/js/primitives/cylinder.js";
 
 import { qmake, slerp, qrot } from "../common/js/quaternion.js";
 
-let gl, program, mcLoc, mv, baseTime, vao, route, transit;
+let gl, program, mcLoc, tLoc, mv, baseTime, vao, route, transit;
 
 // アニメーションの周期（秒）
 const cycle = 5;
@@ -55,14 +55,18 @@ function app() {
   );
 
   // uniform 変数のインデックスの検索
-  const positionAttributeLocation = gl.getAttribLocation(program, "p0");
+  const positionAttributeLocations =
+    ["p0", "p1"].map((key) => gl.getAttribLocation(program, key));
+  tLoc = gl.getUniformLocation(program, "t");
   mcLoc = gl.getUniformLocation(program, "mc");
 
   // ビュー変換行列を mv に求める
   mv = lookat(3, 4, 5, 0, 0, 0, 0, 1, 0);
 
+  const positions = [position0, position1];
+
   // 頂点配列オブジェクトの作成
-  vao = createObject(gl, position0, index, positionAttributeLocation);
+  vao = createObject(gl, index, positions, positionAttributeLocations);
 
   // 平行移動の経路
   route = [
@@ -130,6 +134,7 @@ function render() {
 
   // uniform 変数 mc に変換行列 mc を設定する
   gl.uniformMatrix4fv(mcLoc, false, mc);
+  gl.uniform1f(tLoc, t * 0.3);
 
   // 描画に使う頂点配列オブジェクトの指定
   gl.bindVertexArray(vao);

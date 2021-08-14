@@ -6,14 +6,14 @@ in vec4 p0;
 in vec4 p1;
 uniform float t;
 uniform mat4 mc;
-
+const float exponent = -16.0;
 
 // all shaders have a main function
 void main() {
 
   // gl_Position is a special variable a vertex shader
   // is responsible for setting
-  gl_Position = mc * p0;
+  gl_Position = mc * mix(p0, p1, t);
 }
 `;
 
