@@ -1,5 +1,5 @@
 // 頂点属性
-export const position = [
+export const position0 = [
   0.9,  0.9,  0.9,
   0.9, -0.9,  0.9,
   0.9, -0.9, -0.9,

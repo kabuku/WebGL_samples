@@ -6,7 +6,6 @@ in vec4 p0;
 in vec4 p1;
 uniform float t;
 uniform mat4 mc;
-const float exponent = -16.0;
 
 // all shaders have a main function
 void main() {
