@@ -1,0 +1,181 @@
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>ggsample04</title>
+    <!--link type="text/css" href="https://webgl2fundamentals.org/webgl/resources/webgl-tutorials.css" rel="stylesheet" /-->
+    <link type="text/css" href="../common/webgl-tutorials.css" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="c" width="400" height="300"></canvas>
+    Ref. <a href="https://github.com/tokoik/ggsample04" target="_blank">https://github.com/tokoik/ggsample04</a>
+  </body>
+</html>
+<!--
+for most samples webgl-utils only provides shader compiling/linking and
+canvas resizing because why clutter the examples with code that's the same in every sample.
+See https://webgl2fundamentals.org/webgl/lessons/webgl-boilerplate.html
+and https://webgl2fundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
+for webgl-utils, m3, m4, and webgl-lessons-ui.
+-->
+<!--script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script-->
+<script src="../common/webgl-utils.js"></script>
+<script type="module">
+import { createShader, createProgram } from "./js/gg.js"
+import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "./js/matrix.js"
+import { vertexShaderSource, fragmentShaderSource } from "./js/shader.js"
+import { createObject } from "./js/object.js"
+import { spline } from "./js/spline.js"
+
+import { qmake, slerp, qrot } from "./js/quaternion.js"
+
+let gl, program, mcLoc, mv, baseTime, vao, route, transit
+
+// アニメーションの周期（秒）
+const cycle = 5
+
+function app() {
+  const canvas = document.querySelector("#c");
+  gl = canvas.getContext("webgl2");
+  if (!gl) {
+    return;
+  }
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+  // 背景色を指定する
+  gl.clearColor(0, 0, 0, 0);
+
+  // プログラムオブジェクトの作成
+  program = createProgram(gl, 
+    createShader(gl, gl.VERTEX_SHADER, vertexShaderSource),
+    createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource),
+  )
+
+  // uniform 変数のインデックスの検索
+  const positionAttributeLocation = gl.getAttribLocation(program, "pv");
+  mcLoc = gl.getUniformLocation(program, "mc");
+
+  // ビュー変換行列を mv に求める
+  mv = lookat(3, 4, 5, 0, 0, 0, 0, 1, 0);
+
+  // 頂点属性
+  const position = [
+     0.9,  0.9,  0.9,
+     0.9, -0.9,  0.9,
+     0.9, -0.9, -0.9,
+     0.9,  0.9, -0.9,
+
+    -0.9,  0.9,  0.9,
+    -0.9, -0.9,  0.9,
+    -0.9, -0.9, -0.9,
+    -0.9,  0.9, -0.9,
+  ];
+
+  // 頂点インデックス
+  const index = [
+    0, 1,
+    1, 2,
+    2, 3,
+    3, 0,
+
+    4, 5,
+    5, 6,
+    6, 7,
+    7, 4,
+
+    0, 4,
+    1, 5,
+    2, 6,
+    3, 7
+  ];
+
+  // 頂点配列オブジェクトの作成
+  vao = createObject(gl, position, index, positionAttributeLocation)
+
+  // 平行移動の経路
+  route = [
+    [ -2.0, -1.0, -3.0 ],
+    [  0.0, -2.0, -2.0 ],
+    [ -1.0, -1.0, -1.0 ],
+    [ -0.5, -0.5, -0.5 ],
+    [  0.0,  0.0,  0.0 ],
+  ]
+
+  // 通過時間 (× cycle)
+  transit = [
+    0.0,
+    0.3,
+    0.5,
+    0.7,
+    1.0,
+  ];
+
+  // 経過時間のリセット
+  baseTime = new Date().getTime()
+
+  // ウィンドウが開いている間繰り返す
+  function loop() {
+    render()
+    requestAnimationFrame(loop)
+  }
+  loop()
+}
+
+// ウィンドウが開いている間繰り返す
+function render() {
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+  // シェーダプログラムの使用開始
+  gl.useProgram(program);
+
+  // 時刻の計測
+  const ms = (new Date().getTime() - baseTime) / 1000
+  const t = ms % cycle / cycle
+
+  // 時刻 t にもとづく回転アニメーション
+  // 【宿題】ここを解答してください（下の loadIdentity() を置き換えてください）
+  //const mr = loadIdentity();                   // 回転の変換行列
+  // -----------------------------------
+  const q = qmake([1, 0, 0], 1)
+  const r = qmake([0, 0, 1], 2)
+  const qrt = slerp(q, r, t)
+  const mr = qrot(qrt)
+  // -----------------------------------
+
+  // 時刻 t にもとづく平行移動アニメーション
+  const location = spline(route, transit, t) // 現在位置
+  const mt = translation(...location);
+
+  // モデル変換行列を mm に求め，
+  // それとビュー変換行列 mv の積をモデルビュー変換行列 mw に求める
+  const mm = multiply(mt, mr)  // モデル変換 mm ← 移動 mt × 回転 mr
+  const mw = multiply(mv, mm)  // モデルビュー変換 mw ← ビュー変換 mv × モデル変換 mm
+
+  // 透視投影変換行列を mp に求め，
+  // それとモデルビュー変換行列 mw の積をクリッピング座標系への変換行列 mc に求める
+  const mp = perspective(0.5, gl.canvas.width / gl.canvas.height, 1.0, 15.0);
+  const mc = multiply(mp, mw)        // クリッピング座標系への変換行列 mc ← 投影変換 mp × モデルビュー変換 mw
+
+  // uniform 変数 mc に変換行列 mc を設定する
+  gl.uniformMatrix4fv(mcLoc, false, mc);
+
+  // 描画に使う頂点配列オブジェクトの指定
+  gl.bindVertexArray(vao);
+
+  // 図形の描画
+  gl.drawElements(gl.LINES, 24, gl.UNSIGNED_SHORT, 0);
+
+  // 頂点配列オブジェクトの指定解除
+  gl.bindVertexArray(null);
+
+  // シェーダプログラムの使用終了
+  gl.useProgram(null);
+
+  // カラーバッファを入れ替えてイベントを取り出す
+  // nop
+}
+
+app()
+</script>
