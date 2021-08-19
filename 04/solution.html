@@ -21,15 +21,15 @@ and https://webgl2fundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
 for webgl-utils, m3, m4, and webgl-lessons-ui.
 -->
 <!--script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script-->
-<script src="../common/webgl-utils.js"></script>
+<script src="../common/js/webgl-utils.js"></script>
 <script type="module">
-import { createShader, createProgram } from "./js/gg.js"
-import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "./js/matrix.js"
-import { vertexShaderSource, fragmentShaderSource } from "./js/shader.js"
-import { createObject } from "./js/object.js"
-import { spline } from "./js/spline.js"
+import { createShader, createProgram } from "../common/js/gg.js"
+import { mulV, translation, projection, multiply, ortho, frustum, perspective, lookat, loadIdentity } from "../common/js/matrix.js"
+import { vertexShaderSource, fragmentShaderSource } from "./shader.js"
+import { createObject } from "./object.js"
+import { spline } from "../common/js/spline.js"
 
-import { qmake, slerp, qrot } from "./js/quaternion.js"
+import { qmake, slerp, qrot } from "../common/js/quaternion.js"
 
 let gl, program, mcLoc, mv, baseTime, vao, route, transit
 
@@ -48,7 +48,7 @@ function app() {
   gl.clearColor(0, 0, 0, 0);
 
   // プログラムオブジェクトの作成
-  program = createProgram(gl, 
+  program = createProgram(gl,
     createShader(gl, gl.VERTEX_SHADER, vertexShaderSource),
     createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource),
   )
