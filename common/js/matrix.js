@@ -6,7 +6,7 @@ export function translation(tx, ty, tz) {
       tx, ty, tz, 1,
     ];
   }
-  
+
   export function projection(width, height, depth) {
     // Note: This matrix flips the Y axis so 0 is at the top.
     return [
@@ -120,7 +120,7 @@ export function translation(tx, ty, tz) {
     const normUZDash = Math.sqrt(
       Math.pow(uy * zDash[2] - uz * zDash[1],2) + Math.pow(uz * zDash[0] - ux * zDash[2],2) + Math.pow(ux * zDash[1] - uy * zDash[0],2)
     );
-    const xDash = [ 
+    const xDash = [
       uy * zDash[2] - uz * zDash[1] / normUZDash,
       uz * zDash[0] - ux * zDash[2] / normUZDash,
       ux * zDash[1] - uy * zDash[0] / normUZDash
@@ -152,7 +152,7 @@ export function translation(tx, ty, tz) {
       0,0,0,1,
     ]
   }
-  
+
   export function mulV(mat, v) {
     return [
       mat[0]*v[0] + mat[3]*v[1] + mat[6]*v[2],
@@ -160,3 +160,45 @@ export function translation(tx, ty, tz) {
       mat[2]*v[0] + mat[5]*v[1] + mat[8]*v[2],
     ]
   }
+
+/**
+ * Y 軸回転の行列を取得する
+ * @param {number[]} a 角度
+ * @returns number[]
+ */
+export function rotateY(a) {
+  const c = Math.cos(a);
+  const s = Math.sin(a);
+  return [
+      c, 0.0,  -s, 0.0,
+    0.0, 1.0, 0.0, 0.0,
+      s, 0.0,   c, 0.0,
+    0.0, 0.0, 0.0, 1.0,
+  ];
+}
+
+/**
+ * 法線変換行列を設定する
+ * @param {number[]} marray
+ * @returns number[]
+ */
+export function normal(marray) {
+  return [
+    marray[ 5] * marray[10] - marray[ 6] * marray[ 9],    // 0
+    marray[ 6] * marray[ 8] - marray[ 4] * marray[10],    // 1
+    marray[ 4] * marray[ 9] - marray[ 5] * marray[ 8],    // 2
+    0.0,                                                  // 3
+    marray[ 9] * marray[ 2] - marray[10] * marray[ 1],    // 4
+    marray[10] * marray[ 0] - marray[ 8] * marray[ 2],    // 5
+    marray[ 8] * marray[ 1] - marray[ 9] * marray[ 0],    // 6
+    0.0,                                                  // 7
+    marray[ 1] * marray[ 6] - marray[ 2] * marray[ 5],    // 8
+    marray[ 2] * marray[ 4] - marray[ 0] * marray[ 6],    // 9
+    marray[ 0] * marray[ 5] - marray[ 1] * marray[ 4],    // 10
+    0.0,                                                  // 11
+    0.0,                                                  // 12
+    0.0,                                                  // 13
+    0.0,                                                  // 14
+    1.0,                                                  // 15
+  ];
+}
