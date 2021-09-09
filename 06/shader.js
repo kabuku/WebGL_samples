@@ -49,7 +49,7 @@ void main() {
 `;
 
 export const fragmentShaderSource = `#version 300 es
-precision mediump float;
+smooth mediump float;
 
 in vec4 vc;
 out vec4 fc;
