@@ -1,0 +1,223 @@
+<!-- Licensed under a BSD license. See license.html for license -->
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>ggsample07</title>
+    <!--link type="text/css" href="https://webgl2fundamentals.org/webgl/resources/webgl-tutorials.css" rel="stylesheet" /-->
+    <link type="text/css" href="../common/webgl-tutorials.css" rel="stylesheet" />
+  </head>
+  <body>
+    <canvas id="c" width="400" height="300"></canvas>
+    Ref. <a href="https://github.com/tokoik/ggsample07" target="_blank">https://github.com/tokoik/ggsample07</a>
+  </body>
+</html>
+<!--
+for most samples webgl-utils only provides shader compiling/linking and
+canvas resizing because why clutter the examples with code that's the same in every sample.
+See https://webgl2fundamentals.org/webgl/lessons/webgl-boilerplate.html
+and https://webgl2fundamentals.org/webgl/lessons/webgl-resizing-the-canvas.html
+for webgl-utils, m3, m4, and webgl-lessons-ui.
+-->
+<!--script src="https://webgl2fundamentals.org/webgl/resources/webgl-utils.js"></script-->
+<script src="../common/js/webgl-utils.js"></script>
+<script type="module">
+import { createShader, createProgram } from "../common/js/gg.js";
+import { multiply, perspective, lookat, normal } from "../common/js/matrix.js";
+import { rotateX } from "../common/js/quaternion.js";
+import { vertexShaderSource, fragmentShaderSource } from "./solution/shader.js";
+
+let gl, program, nvLoc, mwLoc, mcLoc, mgLoc, mv, vao, points, baseTime;
+
+// アニメーションの周期（秒）
+const cycle = 5;
+
+// 球のデータの分割数
+const slices = 64;
+const stacks = 32;
+
+// 球のデータの頂点数と面数
+const vertices = (slices + 1) * (stacks + 1);
+const faces = slices * stacks * 2;
+
+function makeSphere(radius, slices, stacks, pv, nv, f) {
+  // 頂点の位置とテクスチャ座標を求める
+  var k, j, i, idx;
+  for (k = 0, j = 0; j <= stacks; ++j)
+  {
+    const t = j / stacks;
+    const ph = 3.141593 * t;
+    const y = Math.cos(ph);
+    const r = Math.sin(ph);
+
+    for (i = 0; i <= slices; ++i)
+    {
+      const s = i / slices;
+      const th = -2.0 * 3.141593 * s;
+      const x = r * Math.cos(th);
+      const z = r * Math.sin(th);
+
+      // 頂点の座標値
+      idx = k * 3;
+      pv[idx + 0] = x * radius;
+      pv[idx + 1] = y * radius;
+      pv[idx + 2] = z * radius;
+
+      // 頂点の法線ベクトル
+      nv[idx + 0] = x;
+      nv[idx + 1] = y;
+      nv[idx + 2] = z;
+
+      ++k;
+    }
+  }
+
+  // 面の指標を求める
+  for (k = 0, j = 0; j < stacks; ++j)
+  {
+    for (i = 0; i < slices; ++i)
+    {
+      const count = (slices + 1) * j + i;
+
+      // 上半分の三角形
+      idx = k * 3;
+      f[idx + 0] = count;
+      f[idx + 1] = count + slices + 2;
+      f[idx + 2] = count + 1;
+      ++k;
+
+      // 下半分の三角形
+      idx = k * 3;
+      f[idx + 0] = count;
+      f[idx + 1] = count + slices + 1;
+      f[idx + 2] = count + slices + 2;
+      ++k;
+    }
+  }
+}
+
+function app() {
+  const canvas = document.querySelector("#c");
+  gl = canvas.getContext("webgl2");
+  if (!gl) {
+    return;
+  }
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+  // 背景色を指定する
+  gl.clearColor(1.0, 1.0, 1.0, 0.0);
+
+  // プログラムオブジェクトの作成
+  program = createProgram(gl,
+    createShader(gl, gl.VERTEX_SHADER, vertexShaderSource),
+    createShader(gl, gl.FRAGMENT_SHADER, fragmentShaderSource),
+  );
+
+  // in(attribute) 変数 cv のインデックスの検索(見つからなければ -1)
+  nvLoc = gl.getAttribLocation(program, "nv");
+
+  // uniform 変数のインデックスの検索(見つからなければ -1)
+  mwLoc = gl.getUniformLocation(program, "mw");
+  mcLoc = gl.getUniformLocation(program, "mc");
+  mgLoc = gl.getUniformLocation(program, "mg");
+
+  // ビュー変換行列を mv に求める
+  mv = lookat(0.0, 0.0, 5.0, 0.0, 0.0, 0.0, 0.0, 1.0, 0.0);
+
+  // 図形データの作成
+  var pv = [];  // vertices * 3
+  var nv = [];  // vertices * 3
+  var face = []; // faces * 3
+  makeSphere(1.0, slices, stacks, pv, nv, face);
+
+  // 頂点配列オブジェクトの作成
+  vao = gl.createVertexArray();
+  gl.bindVertexArray(vao);
+
+  // 頂点バッファオブジェクトの作成
+
+  // 頂点の座標値 pv のバッファオブジェクト
+  const vbo0 = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo0);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(pv), gl.STATIC_DRAW);
+
+  // 結合されている頂点バッファオブジェクトを in 変数 pv (index === 0) から参照できるようにする
+  gl.vertexAttribPointer(0, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(0);
+
+  // 頂点の色 nv 用のバッファオブジェクト
+  const vbo1 = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, vbo1);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(nv), gl.STATIC_DRAW);
+
+  // 結合されている頂点バッファオブジェクトを in 変数 nv (index === nvLoc) から参照できるようにする
+  gl.vertexAttribPointer(nvLoc, 3, gl.FLOAT, false, 0, 0);
+  gl.enableVertexAttribArray(nvLoc);
+
+  // 頂点のインデックス face 用のバッファオブジェクト
+  const vbo2 = gl.createBuffer();
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, vbo2);
+  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, new Uint16Array(face), gl.STATIC_DRAW);
+
+  // 経過時間のリセット
+  baseTime = new Date().getTime();
+
+  // 隠面消去を有効にする
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
+
+  // ウィンドウが開いている間繰り返す
+  function loop() {
+    render();
+    requestAnimationFrame(loop);
+  }
+  loop();
+}
+
+// ウィンドウが開いている間繰り返す
+function render() {
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  // シェーダプログラムの使用開始
+  gl.useProgram(program);
+
+  // 時刻の計測
+  const ms = (new Date().getTime() - baseTime) / 1000;
+  const t = ms % cycle / cycle;
+
+  // モデルビュー変換行列(時刻 t にもとづく回転アニメーション)
+  const mw = multiply(mv, rotateX(12.56637 * t));
+
+  // 法線変換行列
+  const mg = normal(mw);
+
+  // 投影変換行列
+  const mp = perspective(0.5, gl.canvas.width / gl.canvas.height, 1.0, 15.0);
+
+  // モデルビュー・投影変換
+  const mc = multiply(mp, mw);
+
+  // uniform 変数を設定する
+  gl.uniformMatrix4fv(mwLoc, false, mw);
+  gl.uniformMatrix4fv(mcLoc, false, mc);
+  gl.uniformMatrix4fv(mgLoc, false, mg);
+
+  // 描画に使う頂点配列オブジェクトの指定
+  gl.bindVertexArray(vao);
+
+  // 図形の描画
+  gl.drawElements(gl.TRIANGLES, faces * 3, gl.UNSIGNED_SHORT, 0);
+
+  // 頂点配列オブジェクトの指定解除
+  gl.bindVertexArray(null);
+
+  // シェーダプログラムの使用終了
+  gl.useProgram(null);
+
+  // カラーバッファを入れ替えてイベントを取り出す
+  // nop
+}
+
+app();
+</script>
