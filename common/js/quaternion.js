@@ -59,3 +59,8 @@ export function qmake(axis, rad) {
       m03, m13, m23, m33,
     ]
   }
+
+  export function rotateX(a) {
+    return qrot(qmake([1.0, 0.0, 0.0], a))
+  }
+  
