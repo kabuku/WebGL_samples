@@ -19,5 +19,9 @@
 - [ひな形](05/base.html)
 - [解答例](05/solution.html)
 
-## 6. 陰影付け (6)
+## 6. 陰影付け (1)
 - [解答例](06/solution.html)
+
+## 7. 陰影付け (2)
+- [ひな形](07/base.html)
+- [解答例](07/solution.html)
