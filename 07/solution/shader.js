@@ -66,8 +66,8 @@ void main(void)
 
   float lt = dot(nl, t);
   float vt = dot(nv, t);
-  float ct = sqrt(1.0 - pow(lt, 2.0));
-  float ca = ct * sqrt(1.0 - pow(vt, 2.0)) - (lt * vt);
+  float ct = sqrt(1.0 - (lt * lt));
+  float ca = ct * sqrt(1.0 - (vt * vt)) - (lt * vt);
 
   vec4 iamb = kamb * lamb;
   vec4 idiff = ct * kdiff * ldiff;
