@@ -1,5 +1,5 @@
 # WebGL_samples
-[ゲームグラフィックス特論](https://tokoik.github.io/gg/)のOpenGLサンプルのWebGL移植
+[床井先生](https://twitter.com/tokoik)による[ゲームグラフィックス特論](https://tokoik.github.io/gg/)のOpenGLサンプルのWebGL移植
 
 各回の最後にある宿題をWebGLで再現したものです。
 
