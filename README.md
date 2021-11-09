@@ -1,8 +1,8 @@
 # WebGL_samples
 
-[床井先生](https://twitter.com/tokoik)による[ゲームグラフィックス特論](https://tokoik.github.io/gg/)の OpenGL サンプルの WebGL 移植
+[床井先生](https://twitter.com/tokoik)による[ゲームグラフィックス特論](https://tokoik.github.io/gg/)のOpenGLサンプルのWebGL移植
 
-各回の最後にある宿題（元々は C++と OpenGL で書かれたもの）を WebGL で再現したものです。
+各回の最後にある宿題（元々はC++とOpenGLで書かれたもの）をWebGLで再現したものです。
 
 ## 2. GPU
 
