@@ -148,35 +148,39 @@ class Face {
   }
 }
 
-class FacesWithMaterial {
+class Group {
   /**
    * @param {Array<Face>} faces
    * @param {Material} material
    */
   constructor(faces, material) {
+    /** @type {string} */
+    this.name = "";
     /** @type {Array<Face>} */
     this.faces = faces;
     /** @type {Material} */
     this.material = material;
+    /** @type {boolean} */
+    this.isSmooth = false;
   }
 }
 
 class Obj {
   /**
    * @param {VertexesInfo} vertexesInfo
-   * @param {Array<FacesWithMaterial>} facesWithMaterialList
+   * @param {Array<Group>} groups
    */
-  constructor(vertexesInfo, facesWithMaterialList) {
+  constructor(vertexesInfo, groups) {
     /** @type {VertexesInfo} */
     this.vertexesInfo = vertexesInfo;
-    /** @type {Array<FacesWithMaterial>} */
-    this.facesWithMaterialList = facesWithMaterialList;
+    /** @type {Array<Group>} */
+    this.groups = groups;
   }
 }
 
 /**
  * @param {string} url
- * @returns {Promise<Array<FacesWithMaterial>>}
+ * @returns {Promise<Array<Group>>}
  */
 export async function loadMtl(url) {
   const materials = {};
@@ -234,7 +238,7 @@ export async function loadMtl(url) {
 export async function loadObj(url, materials) {
   const response = await fetch(url);
   const text = await response.text();
-  const [vertexesText, ...facesWithMaterialTextList] = text.split("usemtl ");
+  const [vertexesText, ...rawGroupTextList] = text.split("usemtl ");
 
   const vertexesInfo = vertexesText.split("\n").reduce(
     /**
@@ -272,11 +276,11 @@ export async function loadObj(url, materials) {
     new VertexesInfo()
   );
 
-  const facesWithMaterialList = facesWithMaterialTextList.map(
-    (facesWithMaterialText) => {
-      const [materialName, ...faceTextList] = facesWithMaterialText.split("\n");
-      const material = materials[materialName];
-      const faces = faceTextList
+  const groups = rawGroupTextList.map(
+    (rawGroupText) => {
+      const [materialName, ...rawGroupTextLines] = rawGroupText.split("\n");
+      const material = materials[materialName.replace("\r", "")];
+      const faces = rawGroupTextLines
         .filter((t) => t.startsWith("f "))
         .map((faceText) => {
           const values = faceText.split(" ");
@@ -285,10 +289,10 @@ export async function loadObj(url, materials) {
             .map((word) => new FaceVertex(word));
           return new Face(faceVertexes[0], faceVertexes[1], faceVertexes[2]);
         });
-      return new FacesWithMaterial(faces, material);
+      return new Group(faces, material);
     }
   );
-  return new Obj(vertexesInfo, facesWithMaterialList);
+  return new Obj(vertexesInfo, groups);
 }
 
 /**
@@ -304,7 +308,7 @@ export function createGLObjects(obj) {
 
   let pIndex = 0;
   // TODO: マテリアルの設定も反映する
-  for (const facesWithMaterial of obj.facesWithMaterialList) {
+  for (const facesWithMaterial of obj.groups) {
     for (const face of facesWithMaterial.faces) {
         const v1 = obj.vertexesInfo.vertexes[face.v1.vertexIndex];
         const v2 = obj.vertexesInfo.vertexes[face.v2.vertexIndex];
