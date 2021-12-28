@@ -32,9 +32,23 @@ class Vec3 {
    * @param {Vec3} v
    * @returns {Vec3}
    */
+  add(v) {
+    if (!v) {
+      return this;
+    }
+    return new Vec3(this.x + v.x, this.y + v.y, this.z + v.z);
+  }
+
+  /**
+   * @param {Vec3} v
+   * @returns {Vec3}
+   */
   sub(v) {
+    if (!v) {
+      return this;
+    }
     return new Vec3(this.x - v.x, this.y - v.y, this.z - v.z);
-  };
+  }
 
   /**
    * @param {Vec3} v
@@ -46,14 +60,14 @@ class Vec3 {
       this.z * v.x - this.x * v.z,
       this.x * v.y - this.y * v.x
     );
-  };
+  }
 
   /**
    * @returns {number}
    */
   length() {
     return Math.sqrt(this.x * this.x + this.y * this.y + this.z * this.z);
-  };
+  }
 
   /**
    * @returns {Vec3}
@@ -61,7 +75,7 @@ class Vec3 {
   normalize() {
     const l = this.length();
     return new Vec3(this.x / l, this.y / l, this.z / l);
-  };
+  }
 
   /**
    * @returns {Array<number>}
@@ -146,18 +160,28 @@ class Face {
     /** @type {FaceVertex} */
     this.v3 = v3;
   }
+
+  /**
+   * @returns {boolean}
+   */
+  isNormalVecsExist() {
+    return (
+      this.v1.normalVecIndex !== null &&
+      this.v2.normalVecIndex !== null &&
+      this.v3.normalVecIndex !== null
+    );
+  }
 }
 
 class Group {
   /**
-   * @param {Array<Face>} faces
    * @param {Material} material
    */
-  constructor(faces, material) {
+  constructor(material) {
     /** @type {string} */
     this.name = "";
     /** @type {Array<Face>} */
-    this.faces = faces;
+    this.faces = [];
     /** @type {Material} */
     this.material = material;
     /** @type {boolean} */
@@ -276,22 +300,32 @@ export async function loadObj(url, materials) {
     new VertexesInfo()
   );
 
-  const groups = rawGroupTextList.map(
-    (rawGroupText) => {
-      const [materialName, ...rawGroupTextLines] = rawGroupText.split("\n");
-      const material = materials[materialName.replace("\r", "")];
-      const faces = rawGroupTextLines
-        .filter((t) => t.startsWith("f "))
-        .map((faceText) => {
-          const values = faceText.split(" ");
-          const faceVertexes = values
-            .slice(1)
-            .map((word) => new FaceVertex(word));
-          return new Face(faceVertexes[0], faceVertexes[1], faceVertexes[2]);
-        });
-      return new Group(faces, material);
-    }
-  );
+  let isSmoothState = false;
+  const groups = rawGroupTextList.map((rawGroupText) => {
+    const [materialName, ...rawGroupTextLines] = rawGroupText.split("\n");
+    const material = materials[materialName.replace("\r", "")];
+    return rawGroupTextLines.reduce((acc, cur) => {
+      const [element, ...tokens] = cur.split(" ");
+      switch (element) {
+        case "s":
+          isSmoothState = parseInt(tokens[0]) > 0;
+          acc.isSmooth = isSmoothState;
+          break;
+        case "f":
+          const [baseVertex, ...faceVertexes] = tokens.map(
+            (token) => new FaceVertex(token)
+          );
+          // f定義が4個以上だったときに三角形に分割する
+          for (let index = 0; index < faceVertexes.length - 1; index++) {
+            acc.faces.push(
+              new Face(baseVertex, faceVertexes[index], faceVertexes[index + 1])
+            );
+          }
+          break;
+      }
+      return acc;
+    }, new Group(material));
+  });
   return new Obj(vertexesInfo, groups);
 }
 
@@ -310,15 +344,48 @@ export function createGLObjects(obj) {
   // TODO: マテリアルの設定も反映する
   for (const facesWithMaterial of obj.groups) {
     for (const face of facesWithMaterial.faces) {
-        const v1 = obj.vertexesInfo.vertexes[face.v1.vertexIndex];
-        const v2 = obj.vertexesInfo.vertexes[face.v2.vertexIndex];
-        const v3 = obj.vertexesInfo.vertexes[face.v3.vertexIndex];
-        pv.push(...v1.toArray(), ...v2.toArray(), ...v3.toArray());
-        const n1 = obj.vertexesInfo.normalVecs[face.v1.normalVecIndex] ?? v1;
-        const n2 = obj.vertexesInfo.normalVecs[face.v2.normalVecIndex] ?? v2;
-        const n3 = obj.vertexesInfo.normalVecs[face.v3.normalVecIndex] ?? v3;
+      faces.push(pIndex++, pIndex++, pIndex++);
+
+      const v1 = obj.vertexesInfo.vertexes[face.v1.vertexIndex];
+      const v2 = obj.vertexesInfo.vertexes[face.v2.vertexIndex];
+      const v3 = obj.vertexesInfo.vertexes[face.v3.vertexIndex];
+      pv.push(...v1.toArray(), ...v2.toArray(), ...v3.toArray());
+
+      if (face.isNormalVecsExist()) {
+        const n1 = obj.vertexesInfo.normalVecs[face.v1.normalVecIndex];
+        const n2 = obj.vertexesInfo.normalVecs[face.v2.normalVecIndex];
+        const n3 = obj.vertexesInfo.normalVecs[face.v3.normalVecIndex];
         nv.push(...n1.toArray(), ...n2.toArray(), ...n3.toArray());
-        faces.push(pIndex++, pIndex++, pIndex++);
+        continue;
+      }
+
+      // モデルに法線ベクトル情報が定義されていない場合
+      const subV1V2 = v1.sub(v2);
+      const subV1V3 = v1.sub(v3);
+      const normal = subV1V2.cross(subV1V3).normalize();
+      if (!facesWithMaterial.isSmooth) {
+        nv.push(...normal.toArray(), ...normal.toArray(), ...normal.toArray());
+      } else {
+        obj.vertexesInfo.normalVecs[face.v1.vertexIndex] = normal
+          .add(obj.vertexesInfo.normalVecs[face.v1.vertexIndex])
+          .normalize();
+        obj.vertexesInfo.normalVecs[face.v2.vertexIndex] = normal
+          .add(obj.vertexesInfo.normalVecs[face.v2.vertexIndex])
+          .normalize();
+        obj.vertexesInfo.normalVecs[face.v3.vertexIndex] = normal
+          .add(obj.vertexesInfo.normalVecs[face.v3.vertexIndex])
+          .normalize();
+      }
+    }
+    // nv未設定時に上で計算した法線ベクトルの値を設定する
+    if (nv.length === 0) {
+      for (const face of facesWithMaterial.faces) {
+        nv.push(
+          ...obj.vertexesInfo.normalVecs[face.v1.vertexIndex].toArray(),
+          ...obj.vertexesInfo.normalVecs[face.v2.vertexIndex].toArray(),
+          ...obj.vertexesInfo.normalVecs[face.v3.vertexIndex].toArray()
+        );
+      }
     }
   }
   return {
