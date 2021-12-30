@@ -176,8 +176,9 @@ class Face {
 class Group {
   /**
    * @param {Material} material
+   * @param {boolean} isSmooth
    */
-  constructor(material) {
+  constructor(material, isSmooth) {
     /** @type {string} */
     this.name = "";
     /** @type {Array<Face>} */
@@ -185,7 +186,7 @@ class Group {
     /** @type {Material} */
     this.material = material;
     /** @type {boolean} */
-    this.isSmooth = false;
+    this.isSmooth = isSmooth;
   }
 }
 
@@ -324,7 +325,7 @@ export async function loadObj(url, materials) {
           break;
       }
       return acc;
-    }, new Group(material));
+    }, new Group(material, isSmoothState));
   });
   return new Obj(vertexesInfo, groups);
 }
@@ -340,10 +341,11 @@ export function createGLObjects(obj) {
   /** @type {Array<number>} */
   const faces = [];
 
+  const hasNormalVectors = obj.vertexesInfo.normalVecs.length > 0;
   let pIndex = 0;
   // TODO: マテリアルの設定も反映する
-  for (const facesWithMaterial of obj.groups) {
-    for (const face of facesWithMaterial.faces) {
+  for (const group of obj.groups) {
+    for (const face of group.faces) {
       faces.push(pIndex++, pIndex++, pIndex++);
 
       const v1 = obj.vertexesInfo.vertexes[face.v1.vertexIndex];
@@ -351,7 +353,7 @@ export function createGLObjects(obj) {
       const v3 = obj.vertexesInfo.vertexes[face.v3.vertexIndex];
       pv.push(...v1.toArray(), ...v2.toArray(), ...v3.toArray());
 
-      if (face.isNormalVecsExist()) {
+      if (hasNormalVectors) {
         const n1 = obj.vertexesInfo.normalVecs[face.v1.normalVecIndex];
         const n2 = obj.vertexesInfo.normalVecs[face.v2.normalVecIndex];
         const n3 = obj.vertexesInfo.normalVecs[face.v3.normalVecIndex];
@@ -363,7 +365,7 @@ export function createGLObjects(obj) {
       const subV1V2 = v1.sub(v2);
       const subV1V3 = v1.sub(v3);
       const normal = subV1V2.cross(subV1V3).normalize();
-      if (!facesWithMaterial.isSmooth) {
+      if (!group.isSmooth) {
         nv.push(...normal.toArray(), ...normal.toArray(), ...normal.toArray());
       } else {
         obj.vertexesInfo.normalVecs[face.v1.vertexIndex] = normal
@@ -378,8 +380,8 @@ export function createGLObjects(obj) {
       }
     }
     // nv未設定時に上で計算した法線ベクトルの値を設定する
-    if (nv.length === 0) {
-      for (const face of facesWithMaterial.faces) {
+    if (!hasNormalVectors) {
+      for (const face of group.faces) {
         nv.push(
           ...obj.vertexesInfo.normalVecs[face.v1.vertexIndex].toArray(),
           ...obj.vertexesInfo.normalVecs[face.v2.vertexIndex].toArray(),
