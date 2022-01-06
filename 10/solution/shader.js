@@ -61,7 +61,7 @@ void main(void)
   vec3 l = normalize((pl * p.w - p * pl.w).xyz);    // 光線ベクトル
   vec3 n = normalize((mg * nv).xyz);                // 法線ベクトル
 
-  idiff = max(dot(n, l), 0.0) * kdiff * calcIrradiance(n);
+  idiff = kdiff * calcIrradiance(n);
 
   gl_Position = mc * pv;
 }
